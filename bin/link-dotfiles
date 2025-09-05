@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+YES=0
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --yes|-y) YES=1 ;;
+    *) echo "Unknown arg: $1" >&2; exit 1 ;;
+  esac
+  shift
+done
+
+REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+DOTFILES=(
+  "zsh/.zshrc:$HOME/.zshrc"
+  "git/.gitconfig:$HOME/.gitconfig"
+  "starship/starship.toml:$HOME/.config/starship.toml"
+)
+
+for spec in "${DOTFILES[@]}"; do
+  src="${spec%%:*}"
+  dest="${spec##*:}"
+  src_path="$REPO_DIR/$src"
+  dest_dir="$(dirname "$dest")"
+  [[ -d "$dest_dir" ]] || mkdir -p "$dest_dir"
+  if [[ -e "$dest" || -L "$dest" ]]; then
+    if [[ $YES -eq 1 ]]; then
+      rm -rf "$dest"
+    else
+      read -r -p "Replace $dest? [y/N] " ans
+      [[ $ans == [yY] ]] || { echo "Skipping $dest"; continue; }
+      rm -rf "$dest"
+    fi
+  fi
+  ln -s "$src_path" "$dest"
+  echo "Linked $dest -> $src_path"
+done
+
+echo "All symlinks created."
